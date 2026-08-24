@@ -198,6 +198,9 @@ window.tg=function(id){abierto[id]=!abierto[id];
  const e=document.getElementById(id),c=document.getElementById('c'+id);
  e.classList.toggle('open');if(c)c.style.transform=abierto[id]?'rotate(90deg)':'';};
 function draw(){pintaCards();const rows=filt();document.getElementById('cnt').textContent=rows.length+' tags';
+ if(modo==='arbol'){
+   document.getElementById('list').innerHTML=rows.length?nodo(rows,ejes(),'T'):'<div class="empty">Sin resultados con estos filtros.</div>';
+   return;}
  const by={};rows.forEach(r=>{(by[P[r.p]]=by[P[r.p]]||[]).push(r);});
  const ord=["RVI","FFMM","KYC","TRANSVERSALES","FIC","CDT","POCKET"];
  const names=Object.keys(by).sort((a,b)=>{const ia=ord.indexOf(a),ib=ord.indexOf(b);return (ia<0?99:ia)-(ib<0?99:ib)||by[b].length-by[a].length;});
