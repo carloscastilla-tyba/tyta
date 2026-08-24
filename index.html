@@ -51,6 +51,18 @@ select:focus,input:focus{outline:2px solid var(--primary-80);outline-offset:-1px
 .chip{font-size:12px;line-height:18px;padding:var(--spacing_6) var(--spacing_12);border:1px solid var(--line2);border-radius:var(--radius_full);background:var(--card);cursor:pointer;color:var(--ink2)}
 .chip.on{background:var(--primary-90);color:var(--neutral-10);border-color:var(--primary-90)}
 .cnt{font-size:12.5px;color:var(--ink2);margin-left:auto}
+.seg{display:inline-flex;border:1px solid var(--line2);border-radius:var(--radius_8);overflow:hidden;background:var(--card)}
+.sg{font:inherit;font-size:12px;line-height:18px;padding:var(--spacing_6) var(--spacing_12);border:0;background:transparent;color:var(--ink2);cursor:pointer}
+.sg.on{background:var(--primary-90);color:var(--neutral-10);font-weight:600}
+.nd{display:flex;align-items:center;gap:var(--spacing_8);padding:var(--spacing_6) var(--spacing_12);cursor:pointer;border-radius:var(--radius_6)}
+.nd:hover{background:var(--neutral-20)}
+.chev{color:var(--neutral-70);font-size:10px;width:11px;flex:none;transition:transform .12s;display:inline-block}
+.n1{font-weight:600;font-size:14px}
+.n2{font-family:var(--mono);font-size:12px;color:var(--primary-90);font-weight:600}
+.n3{font-family:var(--mono);font-size:12px}
+.bdg{margin-left:auto;font-size:10px;line-height:16px;color:var(--neutral-70);font-variant-numeric:tabular-nums;white-space:nowrap;padding-left:var(--spacing_8)}
+.kids{margin-left:14px;border-left:1px solid var(--line);padding-left:var(--spacing_4);display:none}
+.kids.open{display:block}
 .layout{display:grid;grid-template-columns:330px 1fr;gap:14px;align-items:start}
 @media(max-width:1080px){.layout{grid-template-columns:1fr}}
 .list{background:var(--card);border:1px solid var(--line);border-radius:var(--radius_12);max-height:78vh;overflow:auto}
@@ -84,12 +96,14 @@ footer b{color:var(--ink2)}
 <header>
 <p class="eyebrow">tyta · agente de tagging de Tyba</p>
 <h1>Explorador de tags</h1>
-<p class="sub">828 tags del tracking plan reconciliados contra Google Analytics y Front End. Cada tag muestra si está vivo, dónde vive y cómo se ve en cada fuente. Los indicadores se recalculan con los filtros activos; haz clic en uno para filtrar por estado.</p>
+<p class="sub">828 tags del tracking plan reconciliados contra Google Analytics y Front End. Cada tag muestra si está vivo, dónde vive y cómo se ve en cada fuente. Explora en <b>lista</b> plana o en <b>árbol</b> por producto, flujo, pantalla o squad. Los indicadores se recalculan con los filtros; haz clic en uno para filtrar por estado.</p>
 </header>
 <div class="bar">
+  <span class="seg"><button class="sg on" data-md="lista">Lista</button><button class="sg" data-md="arbol">Árbol</button></span>
   <select id="fpr"><option value="">Todos los productos</option></select>
   <select id="fsq"><option value="">Todos los squads</option></select>
   <input type="text" id="fq" placeholder="Buscar ID, pantalla, object…">
+  <span id="ejeWrap" style="display:none"><select id="feje"><option value="p">Producto → flujo → pantalla</option><option value="ev">Flujo → producto → pantalla</option><option value="sf">Pantalla → flujo → producto</option><option value="s">Squad → producto → flujo</option></select></span>
   <span class="chip" id="ccol">Solo colisiones</span>
   <span class="chip" id="cnn">Solo 1:N programático</span>
   <span class="cnt" id="cnt"></span>
@@ -145,18 +159,51 @@ function baseFilt(){const q=fq.value.toLowerCase();
   &&(!oCol||r.col)&&(!oNN||r.nn)
   &&(!q||(r.i+' '+r.c.map(c=>c[0]+' '+(c[1]||'')+' '+(c[2]||'')).join(' ')).toLowerCase().includes(q)));}
 function filt(){return baseFilt().filter(r=>!fEst||r.e===fEst);}
+let modo='lista',eje='p';const abierto={};
+document.querySelectorAll('[data-md]').forEach(b=>b.onclick=function(){
+  document.querySelectorAll('[data-md]').forEach(x=>x.classList.remove('on'));
+  this.classList.add('on');modo=this.dataset.md;
+  document.getElementById('ejeWrap').style.display=(modo==='arbol'?'':'none');
+  draw();});
+document.getElementById('feje').onchange=function(){eje=this.value;draw();};
+const KEY={p:r=>P[r.p],s:r=>S[r.s]||'(sin squad)',
+ ev:r=>(r.c[1]&&r.c[1][0]?r.c[1][0].toLowerCase().replace(/ /g,'_'):'(sin flujo)'),
+ sf:r=>(r.c[2]&&r.c[2][0]?r.c[2][0]:'(sin pantalla)')};
+const CLS={p:'n1',s:'n1',ev:'n2',sf:'n3'};
+const NOUN={p:'productos',s:'squads',ev:'flujos',sf:'pantallas'};
+function ejes(){return eje==='p'?['p','ev','sf']:eje==='ev'?['ev','p','sf']:eje==='sf'?['sf','ev','p']:['s','p','ev'];}
+function leafHTML(r){const c=EC[r.e];
+ return '<div class="it '+(sel===r.n?'sel':'')+'" onclick="pick('+r.n+')"><span class="dot" style="background:'+c[1]+'"></span>'+
+  '<span style="font-family:var(--mono);font-size:11.5px;flex:1">'+(r.i||'sin ID')+'</span>'+
+  (r.ev?'<span style="font-size:10px;color:var(--neutral-70)">'+fmt(r.ev)+'</span>':'')+
+  (r.col?'<span class="pill" style="background:var(--yellow-20);color:var(--yellow-90)">col</span>':'')+
+  (r.nn?'<span class="pill" style="background:var(--primary-30);color:var(--primary-100)">1:N</span>':'')+'</div>';}
+function nodo(rows,ax,path){
+ if(!ax.length)return rows.slice().sort((a,b)=>a.k-b.k).map(leafHTML).join('');
+ const k=ax[0],nk=ax[1],g={};
+ rows.forEach(r=>{const v=KEY[k](r);(g[v]=g[v]||[]).push(r);});
+ const ord=["RVI","FFMM","KYC","TRANSVERSALES","FIC","CDT","POCKET"];
+ let names=Object.keys(g);
+ if(k==='p')names.sort((a,b)=>{const ia=ord.indexOf(a),ib=ord.indexOf(b);return (ia<0?99:ia)-(ib<0?99:ib)||g[b].length-g[a].length;});
+ else names.sort((a,b)=>{if(a.indexOf('(sin')===0)return 1;if(b.indexOf('(sin')===0)return -1;return g[b].length-g[a].length;});
+ return names.map(function(v,i){const id=path+'_'+i,rs=g[v];
+  const sub=nk?(new Set(rs.map(x=>KEY[nk](x))).size+' '+NOUN[nk]+' · '):'';
+  const sr=rs.filter(x=>x.e==='SIN RASTRO').length, vv=rs.filter(x=>x.e==='VIVO').length;
+  const mini=[vv?'<b style="color:var(--green-90)">'+vv+'</b>':'',sr?'<b style="color:var(--red-90)">'+sr+'</b>':''].filter(Boolean).join(' / ');
+  return '<div><div class="nd" onclick="tg(\''+id+'\')"><span class="chev" id="c'+id+'">&#9654;</span>'+
+   '<span class="'+CLS[k]+'"'+(v.indexOf('(sin')===0?' style="color:var(--neutral-70)"':'')+'>'+v+'</span>'+
+   '<span class="bdg">'+sub+rs.length+' tags'+(mini?' · '+mini:'')+'</span></div>'+
+   '<div class="kids'+(abierto[id]?' open':'')+'" id="'+id+'">'+nodo(rs,ax.slice(1),id)+'</div></div>';}).join('');}
+window.tg=function(id){abierto[id]=!abierto[id];
+ const e=document.getElementById(id),c=document.getElementById('c'+id);
+ e.classList.toggle('open');if(c)c.style.transform=abierto[id]?'rotate(90deg)':'';};
 function draw(){pintaCards();const rows=filt();document.getElementById('cnt').textContent=rows.length+' tags';
  const by={};rows.forEach(r=>{(by[P[r.p]]=by[P[r.p]]||[]).push(r);});
  const ord=["RVI","FFMM","KYC","TRANSVERSALES","FIC","CDT","POCKET"];
  const names=Object.keys(by).sort((a,b)=>{const ia=ord.indexOf(a),ib=ord.indexOf(b);return (ia<0?99:ia)-(ib<0?99:ib)||by[b].length-by[a].length;});
  let h='';
  names.forEach(p=>{h+='<div class="grp">'+p+' · '+by[p].length+'</div>';
-  by[p].sort((a,b)=>a.k-b.k).forEach(r=>{const c=EC[r.e];
-   h+='<div class="it '+(sel===r.n?'sel':'')+'" onclick="pick('+r.n+')"><span class="dot" style="background:'+c[1]+'"></span>'+
-      '<span style="font-family:var(--mono);font-size:11.5px;flex:1">'+(r.i||'sin ID')+'</span>'+
-      (r.ev?'<span style="font-size:10px;color:var(--ink3)">'+fmt(r.ev)+'</span>':'')+
-      (r.col?'<span class="pill" style="background:var(--yellow-20);color:var(--yellow-90)">col</span>':'')+
-      (r.nn?'<span class="pill" style="background:var(--primary-30);color:var(--primary-100)">1:N</span>':'')+'</div>';});});
+  by[p].sort((a,b)=>a.k-b.k).forEach(r=>{h+=leafHTML(r);});});
  document.getElementById('list').innerHTML=h||'<div class="empty">Sin resultados con estos filtros.</div>';}
 window.pick=function(n){sel=n;const r=R.find(x=>x.n===n);draw();
  const c=EC[r.e];
