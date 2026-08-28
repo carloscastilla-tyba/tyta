@@ -5,3 +5,4 @@ __pycache__/
 .env
 *.pkl
 *.xlsx
+!img/*.jpg
