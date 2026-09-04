@@ -1,0 +1,88 @@
+name: Actualizar miniaturas de Figma
+
+# Se dispara a mano desde la pestaña Actions. No corre solo, para no gastar
+# minutos ni pegarle a la API de Figma sin necesidad.
+on:
+  workflow_dispatch:
+    inputs:
+      solo_faltantes:
+        description: "Descargar solo las que faltan (más rápido)"
+        type: boolean
+        default: true
+      limite:
+        description: "Máximo de nodos (0 = todos). Útil para probar el token"
+        type: string
+        default: "0"
+      escala:
+        description: "Resolución del render"
+        type: choice
+        options: ["0.5", "1", "2"]
+        default: "0.5"
+
+permissions:
+  contents: write
+
+jobs:
+  miniaturas:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalar dependencias
+        run: pip install --quiet pillow
+
+      - name: Comprobar que el token está configurado
+        env:
+          FIGMA_TOKEN: ${{ secrets.FIGMA_TOKEN }}
+        run: |
+          if [ -z "$FIGMA_TOKEN" ]; then
+            echo "::error::Falta el secret FIGMA_TOKEN."
+            echo "Añádelo en Settings → Secrets and variables → Actions → New repository secret"
+            exit 1
+          fi
+          echo "Token presente (${#FIGMA_TOKEN} caracteres)"
+
+      - name: Descargar miniaturas
+        env:
+          FIGMA_TOKEN: ${{ secrets.FIGMA_TOKEN }}
+        run: |
+          ARGS=""
+          [ "${{ inputs.solo_faltantes }}" = "true" ] && ARGS="$ARGS --solo-faltantes"
+          [ "${{ inputs.limite }}" != "0" ] && ARGS="$ARGS --limite ${{ inputs.limite }}"
+          ARGS="$ARGS --escala ${{ inputs.escala }}"
+          echo "Ejecutando con:$ARGS"
+          python scripts/fetch_figma_images.py $ARGS | tee salida.txt
+
+      - name: Resumen
+        run: |
+          {
+            echo "## Miniaturas de Figma"
+            echo ""
+            echo '```'
+            tail -20 salida.txt
+            echo '```'
+            echo ""
+            echo "Imágenes en el repo: $(ls img 2>/dev/null | wc -l)"
+            echo "Peso total: $(du -sh img 2>/dev/null | cut -f1)"
+          } >> $GITHUB_STEP_SUMMARY
+
+      - name: Publicar los cambios
+        run: |
+          rm -f salida.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add img data/tags.json data/nodos_borrados.json 2>/dev/null || true
+          if git diff --staged --quiet; then
+            echo "No hubo cambios que publicar."
+          else
+            N=$(git diff --staged --name-only | grep -c '^img/' || echo 0)
+            git commit -m "Actualiza miniaturas de Figma ($N archivos)
+
+          Generado por el workflow 'Actualizar miniaturas de Figma'."
+            git push
+            echo "Publicados $N archivos."
+          fi
