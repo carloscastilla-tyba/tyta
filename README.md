@@ -91,6 +91,40 @@ data/tracking_plan.csv  el tracking plan reconciliado, en plano
 
 ---
 
+## Regenerar las miniaturas de Figma
+
+Las imágenes que se ven en el explorador están versionadas en `img/`. No se enlazan
+en vivo desde Figma porque las URLs que genera la fórmula `IMAGE()` de Google Sheets
+son enlaces prefirmados de S3 que **expiran a los 7 días**, y en más de la mitad de
+los casos llegan sin el parámetro `X-Amz-Signature`, así que ni siquiera se pueden
+descargar.
+
+`scripts/fetch_figma_images.py` las regenera desde la API de Figma:
+
+```bash
+export FIGMA_TOKEN=figd_xxxxx
+python scripts/fetch_figma_images.py
+
+# opciones
+python scripts/fetch_figma_images.py --solo-faltantes   # no rebaja lo ya descargado
+python scripts/fetch_figma_images.py --limite 20        # prueba corta
+python scripts/fetch_figma_images.py --escala 1         # más resolución
+```
+
+El token se genera en Figma → Settings → Security → Personal access tokens, con
+permiso de solo lectura, y se lee de la variable de entorno: nunca va en el código
+ni se sube al repo.
+
+El script pide las imágenes **en lotes de 50 nodos por llamada**, así que los ~1.170
+nodos se resuelven en unas 25 peticiones en lugar de una por imagen. Después
+actualiza `data/tags.json` para que la interfaz apunte a los archivos locales.
+
+Cuando un nodo ya no existe, la API devuelve `null` y el script lo anota en
+`data/nodos_borrados.json` en vez de fallar. Esa ausencia confirma de forma
+independiente el estado *nodo borrado* que reporta el tracking plan.
+
+---
+
 ## Roadmap
 
 El explorador hace visible lo que existe. La otra mitad del problema es evitar que nazcan tags malos.
