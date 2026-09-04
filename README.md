@@ -99,7 +99,23 @@ son enlaces prefirmados de S3 que **expiran a los 7 días**, y en más de la mit
 los casos llegan sin el parámetro `X-Amz-Signature`, así que ni siquiera se pueden
 descargar.
 
-`scripts/fetch_figma_images.py` las regenera desde la API de Figma:
+Hay dos formas de regenerarlas.
+
+### Desde GitHub, sin instalar nada
+
+1. **Una sola vez:** en el repo, *Settings → Secrets and variables → Actions →
+   New repository secret*. Nombre `FIGMA_TOKEN`, valor el token de Figma
+   (*figma.com/settings → Security → Personal access tokens*, con permiso
+   `File content: Read-only`).
+2. Pestaña **Actions → Actualizar miniaturas de Figma → Run workflow**.
+3. Al terminar, el propio workflow publica las imágenes en el repo.
+
+La primera vez conviene poner `limite = 20` para comprobar que el token tiene
+acceso a los archivos antes de bajar los ~1.170 nodos.
+
+### En local
+
+`scripts/fetch_figma_images.py` hace lo mismo desde tu máquina:
 
 ```bash
 export FIGMA_TOKEN=figd_xxxxx
