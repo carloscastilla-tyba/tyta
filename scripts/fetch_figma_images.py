@@ -190,7 +190,7 @@ def main() -> int:
         for r in d.get("r", []):
             fg = r.get("fg") or {}
             for x in fg.get("im", []):
-                m = re.search(r"figma\.com/design/([A-Za-z0-9]+)", x.get("u", ""))
+                m = re.search(r"figma\.com/(?:file|design|proto)/([A-Za-z0-9]+)", x.get("u", ""))
                 n = re.search(r"node-id=([0-9]+[-:][0-9]+)", x.get("u", ""))
                 if not (m and n):
                     continue
