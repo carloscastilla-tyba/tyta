@@ -91,53 +91,18 @@ data/tracking_plan.csv  el tracking plan reconciliado, en plano
 
 ---
 
-## Regenerar las miniaturas de Figma
+## Figma
 
-Las imágenes que se ven en el explorador están versionadas en `img/`. No se enlazan
-en vivo desde Figma porque las URLs que genera la fórmula `IMAGE()` de Google Sheets
-son enlaces prefirmados de S3 que **expiran a los 7 días**, y en más de la mitad de
-los casos llegan sin el parámetro `X-Amz-Signature`, así que ni siquiera se pueden
-descargar.
+Cada tag muestra el estado de su nodo en el diseño (encontrado, nodo borrado,
+sin verificar) y un enlace al archivo.
 
-Hay dos formas de regenerarlas.
+No se guardan vistas previas. Las URLs que genera la fórmula `IMAGE()` de Google
+Sheets son enlaces prefirmados de S3 que expiran a los 7 días, y regenerarlas
+desde la API exige un token y mantener miles de imágenes versionadas. El enlace
+al nodo es la única referencia que no caduca.
 
-### Desde GitHub, sin instalar nada
-
-1. **Una sola vez:** en el repo, *Settings → Secrets and variables → Actions →
-   New repository secret*. Nombre `FIGMA_TOKEN`, valor el token de Figma
-   (*figma.com/settings → Security → Personal access tokens*, con permiso
-   `File content: Read-only`).
-2. Pestaña **Actions → Actualizar miniaturas de Figma → Run workflow**.
-3. Al terminar, el propio workflow publica las imágenes en el repo.
-
-La primera vez conviene poner `limite = 20` para comprobar que el token tiene
-acceso a los archivos antes de bajar los ~1.170 nodos.
-
-### En local
-
-`scripts/fetch_figma_images.py` hace lo mismo desde tu máquina:
-
-```bash
-export FIGMA_TOKEN=figd_xxxxx
-python scripts/fetch_figma_images.py
-
-# opciones
-python scripts/fetch_figma_images.py --solo-faltantes   # no rebaja lo ya descargado
-python scripts/fetch_figma_images.py --limite 20        # prueba corta
-python scripts/fetch_figma_images.py --escala 1         # más resolución
-```
-
-El token se genera en Figma → Settings → Security → Personal access tokens, con
-permiso de solo lectura, y se lee de la variable de entorno: nunca va en el código
-ni se sube al repo.
-
-El script pide las imágenes **en lotes de 50 nodos por llamada**, así que los ~1.170
-nodos se resuelven en unas 25 peticiones en lugar de una por imagen. Después
-actualiza `data/tags.json` para que la interfaz apunte a los archivos locales.
-
-Cuando un nodo ya no existe, la API devuelve `null` y el script lo anota en
-`data/nodos_borrados.json` en vez de fallar. Esa ausencia confirma de forma
-independiente el estado *nodo borrado* que reporta el tracking plan.
+Si en algún momento se quieren recuperar, `scripts/fetch_figma_images.py` y el
+workflow `.github/workflows/figma-images.yml` siguen en el repo.
 
 ---
 
